@@ -43,7 +43,7 @@ struct Request {
   int64_t id;
   int8_t  miss;
 
-  inline int64_t size() const { return keySize + valueSize + MEMCACHED_OVERHEAD; }
+  inline int64_t size() const { return keySize + valueSize; }
 } __attribute__((packed));
 
 struct MediumRequest {
@@ -56,6 +56,14 @@ struct MediumRequest {
   int8_t  miss;
 
   inline int64_t size() const { return keySize + valueSize + MEMCACHED_OVERHEAD; }
+} __attribute__((packed));
+
+
+struct MSRRequest {
+  int64_t id;
+  int64_t valueSize;
+
+  inline int64_t size() const { return valueSize; }
 } __attribute__((packed));
 
 static constexpr Request NULL_REQUEST{0., 0, 0, 0, 0, 0, false};
@@ -94,13 +102,6 @@ public:
     } else {
       bytesPerProgressTick = -1;
     }
-
-    while (file.good()) {
-      char c = '\0';
-      file.read(&c, 1);
-      header.push_back(c);
-      if (c == '!') { break; }
-    }
   }
 
   void go(bool (*visit)(const Request& req)) {
@@ -111,8 +112,7 @@ public:
     } else if (header == "Time.appId.type.keySize.valueSize.id.miss-=fiiiqq?!") {
       goFull<Request>(visit);
     } else {
-      cerr << "Invalid header in trace: " << header << endl;
-      assert(false);
+      goMSR(visit);
     }
 
     if (bytesPerProgressTick != -1ull) { cout << endl; }
@@ -132,6 +132,28 @@ public:
       Request req { 0., pr.appId, GET, 0, pr.size, pr.id, false };
       tick();
       if (!visit(req)) { break; }
+    }
+  }
+
+
+  void goMSR(bool (*visit)(const Request& req)) {
+    cout << "goMSR: Trace file contains "
+         << (fileSize / sizeof(MSRRequest)) << " requests (each " << sizeof(MSRRequest) << "B).\n";
+
+    MSRRequest r;
+    std::streampos start = 0;
+    file.clear();
+    std::cout << "Resetting back to head of file" << std::endl;
+    file.seekg(start);
+
+    while (true) {
+      file.read((char*)&r, sizeof(r));
+
+      Request req { 0,0,0,0,r.valueSize, r.id, false };
+
+      tick();
+      if (!visit(req)) { break; }
+
     }
   }
 

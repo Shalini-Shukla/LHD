@@ -18,13 +18,13 @@ uint64_t TOTAL_ACCESSES = DEFAULT_TOTAL_ACCESSES;
 
 int32_t filterApp = -1;
 
-const string MSR_TRACE_PREFIX = "/n/memcachier/snia/msr/";
+const string MSR_TRACE_PREFIX = "/users/sshukla2/mnt/CloudStorage/shalini/traces/msr_cambridge_traces/";
 const string FULL_TRACE = "/n/memcachier/full.trace";
 const string APP_TRACE_PREFIX = "/n/memcachier/traces/";
 
 bool simulateCache(const Request& req) {
-  if (filterApp != -1 && req.appId != filterApp) {
-    return true;
+  if (req.id == filterApp) {
+    return false;
   }
 
   _cache->access(req);
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
     if (hostname.compare("memcachier") == 0) {
       trace = FULL_TRACE;
     } else {
-      trace = MSR_TRACE_PREFIX + hostname + ".trace";
+      trace = MSR_TRACE_PREFIX + hostname + ".dat";
     }
     std::cout << "trace: " << trace << std::endl;
   } else {
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
 
   time_t start = time(NULL);
 
-  BinaryParser parser(trace.c_str(), false);
+  BinaryParser parser(trace.c_str(), true);
   parser.go(simulateCache);
 
   time_t end = time(NULL);
